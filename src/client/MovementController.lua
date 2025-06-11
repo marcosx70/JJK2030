@@ -16,6 +16,14 @@ local AnimationManager = require(Shared:WaitForChild("AnimationManager"))
 local StateManager = require(Shared:WaitForChild("StateManager"))
 local DashHandler = require(Shared:WaitForChild("DashHandler"))
 
+humanoid.StateChanged:Connect(function(_, newState)
+	if newState == Enum.HumanoidStateType.Freefall then
+		StateManager.Set("isInAir", true)
+	elseif newState == Enum.HumanoidStateType.Landed or newState == Enum.HumanoidStateType.Running then
+		StateManager.Set("isInAir", false)
+	end
+end)
+
 -- Key state tracking
 local keyStates = {
 	move = Vector3.zero,

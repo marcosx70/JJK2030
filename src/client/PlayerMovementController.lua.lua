@@ -5,6 +5,21 @@ local StateManager = {}
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
+local function refreshCharacter()
+	local newCharacter = player.Character or player.CharacterAdded:Wait()
+	character = newCharacter
+	humanoid = character:WaitForChild("Humanoid")
+	rootPart = character:WaitForChild("HumanoidRootPart")
+end
+
+-- Connect it:
+player.CharacterAdded:Connect(function()
+	refreshCharacter()
+end)
+
+-- Call once at start:
+refreshCharacter()
+
 local StateChanged = Instance.new("BindableEvent")
 StateManager.StateChanged = StateChanged.Event
 

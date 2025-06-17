@@ -1,76 +1,131 @@
--- MovementController.lua (LocalScript)
+-- StateManager.lua (Revised)
 
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
+local StateManager = {}
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Shared = ReplicatedStorage:WaitForChild("src"):WaitForChild("shared")
+local Players = game:GetService("Players")
 
-local InputConfig = require(Shared:WaitForChild("InputConfig"))
-local AnimationManager = require(Shared:WaitForChild("AnimationManager"))
-local StateManager = require(Shared:WaitForChild("StateManager"))
-local DashHandler = require(Shared:WaitForChild("DashHandler"))
-
--- Key state tracking
-local keyStates = {
-	move = Vector3.zero,
-	sprinting = false,
-}
-
--- Hotkey bindings (configurable)
-local KEY_JUMP = InputConfig.JUMP_KEY
-local KEY_SPRINT = InputConfig.SPRINT_KEY
-local KEY_DASH = InputConfig.DASH_KEY
-
--- Update movement direction from input
-local function updateMovementDirection()
-	local direction = Vector3.zero
-	if UserInputService:IsKeyDown(Enum.KeyCode.W) then direction += Vector3.new(0, 0, -1) end
-	if UserInputService:IsKeyDown(Enum.KeyCode.S) then direction += Vector3.new(0, 0, 1) end
-	if UserInputService:IsKeyDown(Enum.KeyCode.A) then direction += Vector3.new(-1, 0, 0) end
-	if UserInputService:IsKeyDown(Enum.KeyCode.D) then direction += Vector3.new(1, 0, 0) end
-	keyStates.move = direction.Unit.Magnitude > 0 and direction.Unit or Vector3.zero
+local function refreshCharacter()
+	local newCharacter = player.Character or player.CharacterAdded:Wait()
+	character = newCharacter
+	humanoid = character:WaitForChild("Humanoid")
+	rootPart = character:WaitForChild("HumanoidRootPart")
 end
 
--- Input handling
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-
-	if input.KeyCode == KEY_JUMP and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-		AnimationManager:play("Jump")
-	elseif input.KeyCode == KEY_SPRINT then
-		keyStates.sprinting = true
-		StateManager:setState("Sprinting")
-		AnimationManager:play("Sprint")
-	elseif input.KeyCode == KEY_DASH and not StateManager:isStunned() then
-		DashHandler:dash(character, keyStates.move)
-	end
+-- Connect it:
+player.CharacterAdded:Connect(function()
+	refreshCharacter()
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-	if input.KeyCode == KEY_SPRINT then
-		keyStates.sprinting = false
-		StateManager:setState("Walking")
-		AnimationManager:play("Walk")
+-- Call once at start:
+refreshCharacter()
+
+local StateChanged = Instance.new("BindableEvent")
+StateManager.StateChanged = StateChanged.Event
+
+local StateChangedRemote = Instance.new("RemoteEvent")
+StateChangedRemote.Name = "StateChangedRemote"
+StateChangedRemote.Parent = ReplicatedStorage
+
+local PlayerStates = {}
+local StateHistory = {}
+
+local LAYERS = {
+	"Movement",
+	"Action",
+	"Combat"
+}
+
+local DEFAULT_STATE = "Idle"
+local ALLOWED_STATES = {
+	Movement = {
+		Idle = true,
+		Walking = true,
+		Sprinting = true,
+		Jumping = true,
+		Falling = true,
+		InAir = true,
+		AirDash = true,
+		AerialCombat = true,
+		Stunned = true,
+	},
+	Action = {
+		None = true,
+		Punching = true,
+		Kicking = true,
+		Blocking = true,
+	},
+	Combat = {
+		Passive = true,
+		Aggressive = true,
+		Defensive = true,
+	}
+}
+
+local function initPlayerState(player)
+	PlayerStates[player] = {}
+	StateHistory[player] = {}
+	for _, layer in ipairs(LAYERS) do
+		PlayerStates[player][layer] = DEFAULT_STATE
+		StateHistory[player][layer] = { DEFAULT_STATE }
 	end
+end
+
+Players.PlayerAdded:Connect(initPlayerState)
+Players.PlayerRemoving:Connect(function(player)
+	PlayerStates[player] = nil
+	StateHistory[player] = nil
 end)
 
--- Animation updates every frame
-RunService.RenderStepped:Connect(function()
-	updateMovementDirection()
+function StateManager:Set(player, layer, newState)
+	assert(PlayerStates[player], "Player state not initialized")
+	assert(table.find(LAYERS, layer), "Invalid layer: " .. tostring(layer))
+	assert(ALLOWED_STATES[layer] and ALLOWED_STATES[layer][newState], "Invalid state for layer: " .. tostring(newState))
 
-	if StateManager:isStunned() then return end
-
-	if keyStates.sprinting and keyStates.move.Magnitude > 0 then
-		AnimationManager:play("Sprint")
-	elseif keyStates.move.Magnitude > 0 then
-		AnimationManager:play("Walk")
-	else
-		AnimationManager:play("Idle")
+	if PlayerStates[player][layer] ~= newState then
+		PlayerStates[player][layer] = newState
+		table.insert(StateHistory[player][layer], newState)
+		StateChanged:Fire(player, layer, newState)
+		StateChangedRemote:FireClient(player, layer, newState)
 	end
-end)
+end
+
+function StateManager:Get(player, layer)
+	return PlayerStates[player] and PlayerStates[player][layer] or DEFAULT_STATE
+end
+
+function StateManager:GetAll(player)
+	return table.clone(PlayerStates[player])
+end
+
+function StateManager:GetHistory(player, layer)
+	return table.clone(StateHistory[player][layer])
+end
+
+function StateManager:Is(player, layer, states)
+	local current = self:Get(player, layer)
+	if type(states) == "string" then
+		return current == states
+	elseif type(states) == "table" then
+		for _, s in ipairs(states) do
+			if current == s then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+function StateManager:Revert(player, layer)
+	assert(StateHistory[player] and StateHistory[player][layer], "Invalid history")
+	local history = StateHistory[player][layer]
+	if #history > 1 then
+		table.remove(history) -- Remove current
+		local prevState = history[#history]
+		PlayerStates[player][layer] = prevState
+		StateChanged:Fire(player, layer, prevState)
+		StateChangedRemote:FireClient(player, layer, prevState)
+	end
+end
+
+return StateManager

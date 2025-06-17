@@ -1,18 +1,23 @@
 -- InputConfig.lua
--- This module returns a dictionary of key bindings for basic player movement and mobility
+-- Centralized configuration for key mappings and future GUI remapping support
+
+local UserInputService = game:GetService("UserInputService")
 
 local InputConfig = {
-    MoveForward = Enum.KeyCode.W,
-    MoveBackward = Enum.KeyCode.S,
-    MoveLeft = Enum.KeyCode.A,
-    MoveRight = Enum.KeyCode.D,
-    
-    Jump = Enum.KeyCode.Space,
-    Dash = Enum.KeyCode.Q, -- You can change this as needed
-    Sprint = Enum.KeyCode.LeftShift,
-    
-    Hover = Enum.KeyCode.E, -- placeholder for cursed-style upgrades
-    ToggleCrouch = Enum.KeyCode.C, -- if crouching gets added
+    JUMP_KEY = Enum.KeyCode.Space,
+    SPRINT_KEY = Enum.KeyCode.LeftShift,
+    DASH_KEY = Enum.KeyCode.Q,
+    MOVE_FORWARD_KEY = Enum.KeyCode.W,
+    MOVE_BACKWARD_KEY = Enum.KeyCode.S,
+    MOVE_LEFT_KEY = Enum.KeyCode.A,
+    MOVE_RIGHT_KEY = Enum.KeyCode.D,
 }
+
+-- Placeholder for future GUI remapping
+function InputConfig:UpdateKeybind(action, newKey)
+    if self[action] then
+        self[action] = newKey
+    end
+end
 
 return InputConfig

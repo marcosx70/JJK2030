@@ -1,23 +1,29 @@
 -- InputConfig.lua
--- Centralized configuration for key mappings and future GUI remapping support
 
 local UserInputService = game:GetService("UserInputService")
 
 local InputConfig = {
-    JUMP_KEY = Enum.KeyCode.Space,
-    SPRINT_KEY = Enum.KeyCode.LeftShift,
-    DASH_KEY = Enum.KeyCode.Q,
-    MOVE_FORWARD_KEY = Enum.KeyCode.W,
-    MOVE_BACKWARD_KEY = Enum.KeyCode.S,
-    MOVE_LEFT_KEY = Enum.KeyCode.A,
-    MOVE_RIGHT_KEY = Enum.KeyCode.D,
+	_bindings = {
+		Jump = Enum.KeyCode.Space,
+		Sprint = Enum.KeyCode.LeftShift,
+		Dash = Enum.KeyCode.Q,
+	},
 }
 
--- Placeholder for future GUI remapping
-function InputConfig:UpdateKeybind(action, newKey)
-    if self[action] then
-        self[action] = newKey
-    end
+function InputConfig:GetKey(action)
+	return self._bindings[action]
+end
+
+function InputConfig:SetKey(action, newKeyCode)
+	if typeof(newKeyCode) == "EnumItem" and newKeyCode.EnumType == Enum.KeyCode then
+		self._bindings[action] = newKeyCode
+	else
+		warn("Invalid keycode for action:", action)
+	end
+end
+
+function InputConfig:GetAllBindings()
+	return table.clone(self._bindings)
 end
 
 return InputConfig

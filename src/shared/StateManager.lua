@@ -1,83 +1,95 @@
 -- StateManager.lua
--- Enhanced state tracking for complex multi-layered systems
+-- Shared module that manages per-player state layering, history, and replication
 
-local StateManager = {}
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- State layering setup
-local layeredStates = {
-    Movement = "Idle",
-    Action = "None",
-    Combat = "None"
-}
+-- Event objects for local and remote state replication
+local StateChanged = Instance.new("BindableEvent")
+local StateChangedRemote = Instance.new("RemoteEvent")
+StateChangedRemote.Name = "StateChangedRemote"
+StateChangedRemote.Parent = ReplicatedStorage
 
-local historyStack = {
-    Movement = {},
-    Action = {},
-    Combat = {}
-}
+-- Configuration
+local LAYERS = { "Movement", "Action", "Combat" }
 
--- Valid states for each layer
-local validStates = {
-    Movement = { Idle = true, Running = true, Sprinting = true, Jumping = true, Freefall = true, Dashing = true, Hovering = true },
-    Action = { None = true, Charging = true, Dodging = true, Stunned = true },
-    Combat = { None = true, Engaged = true, Blocking = true, Attacking = true }
-}
+-- Internal state tracking
+local PlayerStates = {} -- [player] = { [layer] = state }
+local StateHistory = {} -- [player] = { [layer] = { state1, state2, ... } }
 
--- Events
-StateManager.StateChanged = Instance.new("BindableEvent")
-StateManager.OnStateChanged = StateManager.StateChanged.Event
-
--- RemoteEvent for replication (to be parented in ReplicatedStorage)
-local remoteStateEvent = ReplicatedStorage:FindFirstChild("StateChangedRemote")
-if not remoteStateEvent then
-    remoteStateEvent = Instance.new("RemoteEvent")
-    remoteStateEvent.Name = "StateChangedRemote"
-    remoteStateEvent.Parent = ReplicatedStorage
+-- Utility to create default state for a player
+local function initializePlayer(player)
+	PlayerStates[player] = {}
+	StateHistory[player] = {}
+	for _, layer in ipairs(LAYERS) do
+		PlayerStates[player][layer] = "Idle"
+		StateHistory[player][layer] = { "Idle" }
+	end
 end
 
-function StateManager:Get(layer)
-    return layeredStates[layer]
+local function cleanupPlayer(player)
+	PlayerStates[player] = nil
+	StateHistory[player] = nil
 end
 
-function StateManager:Set(layer, newState, player)
-    if validStates[layer] and validStates[layer][newState] then
-        local oldState = layeredStates[layer]
+-- Main API
+local StateManager = {}
 
-        -- Push old state to history stack
-        table.insert(historyStack[layer], oldState)
-
-        layeredStates[layer] = newState
-        StateManager.StateChanged:Fire(layer, newState, oldState)
-
-        if player then
-            remoteStateEvent:FireClient(player, layer, newState)
-        end
-    else
-        warn(`[StateManager] Invalid state '{newState}' for layer '{layer}'`)
-    end
+function StateManager:Set(player, layer, newState)
+	assert(PlayerStates[player], "Player state not initialized")
+	assert(table.find(LAYERS, layer), "Invalid layer")
+	
+	local currentState = PlayerStates[player][layer]
+	if currentState == newState then return end
+	
+	PlayerStates[player][layer] = newState
+	table.insert(StateHistory[player][layer], newState)
+	
+	-- Fire local and remote events
+	StateChanged:Fire(player, layer, newState)
+	StateChangedRemote:FireClient(player, layer, newState)
 end
 
-function StateManager:Is(layer, stateName)
-    return layeredStates[layer] == stateName
+function StateManager:Get(player, layer)
+	assert(PlayerStates[player], "Player state not initialized")
+	return PlayerStates[player][layer]
 end
 
-function StateManager:IsOneOf(layer, stateTable)
-    for _, state in ipairs(stateTable) do
-        if layeredStates[layer] == state then
-            return true
-        end
-    end
-    return false
+function StateManager:IsIn(player, layer, statesTable)
+	assert(PlayerStates[player], "Player state not initialized")
+	return table.find(statesTable, PlayerStates[player][layer]) ~= nil
 end
 
-function StateManager:Revert(layer)
-    local history = historyStack[layer]
-    if history and #history > 0 then
-        local previousState = table.remove(history)
-        self:Set(layer, previousState)
-    end
+function StateManager:Revert(player, layer)
+	assert(PlayerStates[player], "Player state not initialized")
+	local history = StateHistory[player][layer]
+	if #history > 1 then
+		table.remove(history) -- Remove current state
+		local previous = history[#history]
+		self:Set(player, layer, previous)
+	end
+end
+
+function StateManager:GetAll(player)
+	return PlayerStates[player]
+end
+
+function StateManager:GetHistory(player, layer)
+	return StateHistory[player][layer]
+end
+
+-- Bindable event listener (local only)
+function StateManager:GetChangedSignal()
+	return StateChanged.Event
+end
+
+-- Player join/leave handlers
+Players.PlayerAdded:Connect(initializePlayer)
+Players.PlayerRemoving:Connect(cleanupPlayer)
+
+-- Initialize any players already in-game
+for _, player in ipairs(Players:GetPlayers()) do
+	initializePlayer(player)
 end
 
 return StateManager

@@ -1,94 +1,116 @@
--- MovementController.lua (LocalScript)
+-- StateManager.lua (Revised)
 
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local StateManager = {}
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
+local StateChanged = Instance.new("BindableEvent")
+StateManager.StateChanged = StateChanged.Event
 
-local Shared = ReplicatedStorage:WaitForChild("src"):WaitForChild("shared")
-local InputConfig = require(Shared:WaitForChild("InputConfig"))
-local AnimationManager = require(Shared:WaitForChild("AnimationManager"))
-local StateManager = require(Shared:WaitForChild("StateManager"))
-local DashHandler = require(Shared:WaitForChild("DashHandler"))
+local StateChangedRemote = Instance.new("RemoteEvent")
+StateChangedRemote.Name = "StateChangedRemote"
+StateChangedRemote.Parent = ReplicatedStorage
 
--- Key mappings (can be reassigned in InputConfig)
-local KEY_JUMP = InputConfig.JUMP_KEY
-local KEY_SPRINT = InputConfig.SPRINT_KEY
-local KEY_DASH = InputConfig.DASH_KEY
+local PlayerStates = {}
+local StateHistory = {}
 
--- Track player input
-local keyStates = {
-	move = Vector3.zero,
-	sprinting = false,
+local LAYERS = {
+	"Movement",
+	"Action",
+	"Combat"
 }
 
--- Character rebinds on respawn
-local function bindCharacter(newChar)
-	character = newChar
-	humanoid = character:WaitForChild("Humanoid")
+local DEFAULT_STATE = "Idle"
+local ALLOWED_STATES = {
+	Movement = {
+		Idle = true,
+		Walking = true,
+		Sprinting = true,
+		Jumping = true,
+		Falling = true,
+		InAir = true,
+		AirDash = true,
+		AerialCombat = true,
+		Stunned = true,
+	},
+	Action = {
+		None = true,
+		Punching = true,
+		Kicking = true,
+		Blocking = true,
+	},
+	Combat = {
+		Passive = true,
+		Aggressive = true,
+		Defensive = true,
+	}
+}
 
-	humanoid.StateChanged:Connect(function(_, newState)
-		if newState == Enum.HumanoidStateType.Freefall then
-			StateManager:setState("InAir", true)
-		elseif newState == Enum.HumanoidStateType.Landed or newState == Enum.HumanoidStateType.Running then
-			StateManager:setState("InAir", false)
+local function initPlayerState(player)
+	PlayerStates[player] = {}
+	StateHistory[player] = {}
+	for _, layer in ipairs(LAYERS) do
+		PlayerStates[player][layer] = DEFAULT_STATE
+		StateHistory[player][layer] = { DEFAULT_STATE }
+	end
+end
+
+Players.PlayerAdded:Connect(initPlayerState)
+Players.PlayerRemoving:Connect(function(player)
+	PlayerStates[player] = nil
+	StateHistory[player] = nil
+end)
+
+function StateManager:Set(player, layer, newState)
+	assert(PlayerStates[player], "Player state not initialized")
+	assert(table.find(LAYERS, layer), "Invalid layer: " .. tostring(layer))
+	assert(ALLOWED_STATES[layer] and ALLOWED_STATES[layer][newState], "Invalid state for layer: " .. tostring(newState))
+
+	if PlayerStates[player][layer] ~= newState then
+		PlayerStates[player][layer] = newState
+		table.insert(StateHistory[player][layer], newState)
+		StateChanged:Fire(player, layer, newState)
+		StateChangedRemote:FireClient(player, layer, newState)
+	end
+end
+
+function StateManager:Get(player, layer)
+	return PlayerStates[player] and PlayerStates[player][layer] or DEFAULT_STATE
+end
+
+function StateManager:GetAll(player)
+	return table.clone(PlayerStates[player])
+end
+
+function StateManager:GetHistory(player, layer)
+	return table.clone(StateHistory[player][layer])
+end
+
+function StateManager:Is(player, layer, states)
+	local current = self:Get(player, layer)
+	if type(states) == "string" then
+		return current == states
+	elseif type(states) == "table" then
+		for _, s in ipairs(states) do
+			if current == s then
+				return true
+			end
 		end
-	end)
+	end
+	return false
 end
 
-bindCharacter(character)
-player.CharacterAdded:Connect(bindCharacter)
-
--- Process movement input
-local function updateMovementDirection()
-	local direction = Vector3.zero
-	if UserInputService:IsKeyDown(Enum.KeyCode.W) then direction += Vector3.new(0, 0, -1) end
-	if UserInputService:IsKeyDown(Enum.KeyCode.S) then direction += Vector3.new(0, 0, 1) end
-	if UserInputService:IsKeyDown(Enum.KeyCode.A) then direction += Vector3.new(-1, 0, 0) end
-	if UserInputService:IsKeyDown(Enum.KeyCode.D) then direction += Vector3.new(1, 0, 0) end
-
-	if direction.Magnitude > 0 then
-		keyStates.move = direction.Unit
-	else
-		keyStates.move = Vector3.zero
+function StateManager:Revert(player, layer)
+	assert(StateHistory[player] and StateHistory[player][layer], "Invalid history")
+	local history = StateHistory[player][layer]
+	if #history > 1 then
+		table.remove(history) -- Remove current
+		local prevState = history[#history]
+		PlayerStates[player][layer] = prevState
+		StateChanged:Fire(player, layer, prevState)
+		StateChangedRemote:FireClient(player, layer, prevState)
 	end
 end
 
--- Input Events
-UserInputService.InputBegan:Connect(function(input, processed)
-	if processed then return end
-
-	if input.KeyCode == KEY_JUMP and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
-		AnimationManager:play("Jump") -- Jump animation (air-based)
-	elseif input.KeyCode == KEY_SPRINT then
-		keyStates.sprinting = true
-		StateManager:setState("Sprinting")
-	elseif input.KeyCode == KEY_DASH and not StateManager:isStunned() then
-		DashHandler:dash(character, keyStates.move)
-	end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-	if input.KeyCode == KEY_SPRINT then
-		keyStates.sprinting = false
-		StateManager:setState("Walking")
-	end
-end)
-
--- Main Animation + Movement Loop
-RunService.RenderStepped:Connect(function()
-	updateMovementDirection()
-	if StateManager:isStunned() then return end
-
-	if keyStates.sprinting and keyStates.move.Magnitude > 0 then
-		AnimationManager:play("Sprint")
-	elseif keyStates.move.Magnitude > 0 then
-		AnimationManager:play("Walk")
-	else
-		AnimationManager:play("Idle")
-	end
-end)
+return StateManager

@@ -1,95 +1,92 @@
 -- StateManager.lua
--- Shared module that manages per-player state layering, history, and replication
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Event objects for local and remote state replication
+local StateChangedRemote = ReplicatedStorage:WaitForChild("StateChangedRemote")
 local StateChanged = Instance.new("BindableEvent")
-local StateChangedRemote = Instance.new("RemoteEvent")
-StateChangedRemote.Name = "StateChangedRemote"
-StateChangedRemote.Parent = ReplicatedStorage
 
--- Configuration
-local LAYERS = { "Movement", "Action", "Combat" }
-
--- Internal state tracking
-local PlayerStates = {} -- [player] = { [layer] = state }
-local StateHistory = {} -- [player] = { [layer] = { state1, state2, ... } }
-
--- Utility to create default state for a player
-local function initializePlayer(player)
-	PlayerStates[player] = {}
-	StateHistory[player] = {}
-	for _, layer in ipairs(LAYERS) do
-		PlayerStates[player][layer] = "Idle"
-		StateHistory[player][layer] = { "Idle" }
-	end
-end
-
-local function cleanupPlayer(player)
-	PlayerStates[player] = nil
-	StateHistory[player] = nil
-end
-
--- Main API
 local StateManager = {}
+local PlayerStates = {}
+local StateHistory = {}
 
-function StateManager:Set(player, layer, newState)
-	assert(PlayerStates[player], "Player state not initialized")
-	assert(table.find(LAYERS, layer), "Invalid layer")
-	
-	local currentState = PlayerStates[player][layer]
-	if currentState == newState then return end
-	
-	PlayerStates[player][layer] = newState
-	table.insert(StateHistory[player][layer], newState)
-	
-	-- Fire local and remote events
-	StateChanged:Fire(player, layer, newState)
-	StateChangedRemote:FireClient(player, layer, newState)
+-- Define allowed states per layer
+local AllowedStates = {
+    Movement = { Idle = true, Walking = true, Sprinting = true, Jumping = true, AirDash = true, AerialCombat = true },
+    Action = { None = true, Attacking = true, Blocking = true },
+    Combat = { Neutral = true, Engaged = true }
+}
+
+local function validateState(layer, state)
+    return AllowedStates[layer] and AllowedStates[layer][state]
 end
 
-function StateManager:Get(player, layer)
-	assert(PlayerStates[player], "Player state not initialized")
-	return PlayerStates[player][layer]
-end
+Players.PlayerAdded:Connect(function(player)
+    PlayerStates[player] = {
+        Movement = "Idle",
+        Action = "None",
+        Combat = "Neutral"
+    }
+    StateHistory[player] = {
+        Movement = { "Idle" },
+        Action = { "None" },
+        Combat = { "Neutral" }
+    }
+end)
 
-function StateManager:IsIn(player, layer, statesTable)
-	assert(PlayerStates[player], "Player state not initialized")
-	return table.find(statesTable, PlayerStates[player][layer]) ~= nil
+Players.PlayerRemoving:Connect(function(player)
+    PlayerStates[player] = nil
+    StateHistory[player] = nil
+end)
+
+function StateManager:Set(player, layer, state)
+    assert(typeof(player) == "Instance" and player:IsA("Player"), "Invalid player.")
+    assert(PlayerStates[player], "Player not tracked.")
+    assert(validateState(layer, state), "Invalid state for layer: " .. layer)
+
+    PlayerStates[player][layer] = state
+    table.insert(StateHistory[player][layer], state)
+
+    StateChanged:Fire(player, layer, state)
+    StateChangedRemote:FireClient(player, layer, state)
 end
 
 function StateManager:Revert(player, layer)
-	assert(PlayerStates[player], "Player state not initialized")
-	local history = StateHistory[player][layer]
-	if #history > 1 then
-		table.remove(history) -- Remove current state
-		local previous = history[#history]
-		self:Set(player, layer, previous)
-	end
+    local history = StateHistory[player] and StateHistory[player][layer]
+    if history and #history > 1 then
+        table.remove(history)
+        local previousState = history[#history]
+        PlayerStates[player][layer] = previousState
+        StateChanged:Fire(player, layer, previousState)
+        StateChangedRemote:FireClient(player, layer, previousState)
+    end
+end
+
+function StateManager:Get(player, layer)
+    return PlayerStates[player] and PlayerStates[player][layer]
+end
+
+function StateManager:IsInState(player, layer, stateList)
+    local current = self:Get(player, layer)
+    for _, state in ipairs(stateList) do
+        if state == current then return true end
+    end
+    return false
 end
 
 function StateManager:GetAll(player)
-	return PlayerStates[player]
+    local stateCopy = {}
+    for layer, state in pairs(PlayerStates[player] or {}) do
+        stateCopy[layer] = state
+    end
+    return stateCopy
 end
 
 function StateManager:GetHistory(player, layer)
-	return StateHistory[player][layer]
+    return table.clone(StateHistory[player] and StateHistory[player][layer] or {})
 end
 
--- Bindable event listener (local only)
-function StateManager:GetChangedSignal()
-	return StateChanged.Event
-end
-
--- Player join/leave handlers
-Players.PlayerAdded:Connect(initializePlayer)
-Players.PlayerRemoving:Connect(cleanupPlayer)
-
--- Initialize any players already in-game
-for _, player in ipairs(Players:GetPlayers()) do
-	initializePlayer(player)
+function StateManager:GetEvent()
+    return StateChanged.Event
 end
 
 return StateManager

@@ -1,0 +1,22 @@
+# Roblox
+*.rbxl.lock
+*.rbxm.lock
+*.rbxlx.lock
+*.rbxm
+*.rbxmx
+*.rbxl.autosave
+*.rbxlx.autosave
+.sourcelocations.json
+
+# Rojo
+/build/
+rojo.log
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Generated assets/cache
+assets/cache/

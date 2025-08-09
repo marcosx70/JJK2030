@@ -1,54 +1,12 @@
--- InputConfig.lua
--- Configurable key bindings with runtime rebinding support
+--!strict
+export type Bind = { Name: string, Keycode: Enum.KeyCode }
+export type Keymap = { [string]: Bind }
 
-local InputConfig = {}
-
--- Default key bindings
-local defaultKeys = {
-	Jump = Enum.KeyCode.Space,
-	Sprint = Enum.KeyCode.LeftShift,
-	Dash = Enum.KeyCode.E,
-	Forward = Enum.KeyCode.W,
-	Backward = Enum.KeyCode.S,
-	Left = Enum.KeyCode.A,
-	Right = Enum.KeyCode.D,
+local Defaults: Keymap = {
+	Dash = { Name = "Dash", Keycode = Enum.KeyCode.Q },
+	M1 = { Name = "M1", Keycode = Enum.KeyCode.ButtonR2 },
 }
 
--- Active key mappings (mutable)
-InputConfig.Keys = table.clone(defaultKeys)
-
--- Rebind a key at runtime
-function InputConfig.SetKey(actionName, newKeyCode)
-	if not defaultKeys[actionName] then
-		warn("[InputConfig] Invalid action name:", actionName)
-		return
-	end
-	if typeof(newKeyCode) ~= "EnumItem" or newKeyCode.EnumType ~= Enum.KeyCode then
-		warn("[InputConfig] Invalid key code:", newKeyCode)
-		return
-	end
-
-	InputConfig.Keys[actionName] = newKeyCode
-end
-
--- Reset key to default
-function InputConfig.ResetKey(actionName)
-	if defaultKeys[actionName] then
-		InputConfig.Keys[actionName] = defaultKeys[actionName]
-	end
-end
-
--- Reset all keys to default
-function InputConfig.ResetAll()
-	InputConfig.Keys = table.clone(defaultKeys)
-end
-
--- Get currently assigned key
-function InputConfig.GetKey(actionName)
-	return InputConfig.Keys[actionName] or defaultKeys[actionName]
-end
-
--- Expose defaults (read-only)
-InputConfig.Defaults = table.clone(defaultKeys)
-
-return InputConfig
+local M = {}
+function M.GetDefaults(): Keymap return Defaults end
+return M

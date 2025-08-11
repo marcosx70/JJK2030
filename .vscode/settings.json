@@ -1,0 +1,8 @@
+{
+  "explorer.sortOrder": "mixed",
+  "explorer.compactFolders": false,
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.lua": "$(capture).client.lua, $(capture).server.lua, $(capture).spec.lua"
+  }
+}

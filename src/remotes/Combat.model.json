@@ -1,0 +1,14 @@
+{
+  "$className": "Folder",
+  "$properties": { "Name": "Combat" },
+  "PerfectDodge": { "$className": "RemoteEvent" },
+  "Dash":         { "$className": "RemoteEvent" },
+  "Parry":        { "$className": "RemoteEvent" },
+  "Counter":      { "$className": "RemoteEvent" },
+  "HitConfirm":   { "$className": "RemoteEvent" },
+  "AirLaunch":    { "$className": "RemoteEvent" },
+  "AirPursuit":   { "$className": "RemoteEvent" },
+  "Grab":         { "$className": "RemoteEvent" },
+  "FinishRitual": { "$className": "RemoteEvent" },
+  "RequestDamage":{ "$className": "RemoteFunction" }
+}

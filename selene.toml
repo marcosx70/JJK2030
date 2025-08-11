@@ -1,0 +1,9 @@
+std = "roblox"
+[lints]
+shadowing = "warn"
+unused_variable = "warn"
+
+[globals]
+workspace = { read_only = true }
+game = { read_only = true }
+script = { read_only = true }

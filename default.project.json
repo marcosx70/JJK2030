@@ -3,10 +3,12 @@
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
-      "$className": "ReplicatedStorage",
-      "Shared": { "$path": "src/shared" },
-      "Remotes": { "$path": "src/remotes" }
-    },
+  "$className": "ReplicatedStorage",
+  "Shared":   { "$path": "src/shared" },
+  "Remotes":  { "$path": "src/remotes" },
+  "Packages": { "$path": "src/Packages" },
+  "Tests":    { "$path": "src/tests" }
+},
     "ServerScriptService": {
       "$className": "ServerScriptService",
       "Server": { "$path": "src/server" }

@@ -4,9 +4,9 @@
     "$className": "DataModel",
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
-      "Packages": { "$className": "Folder", "$path": "Packages" },
-      "Shared":    { "$className": "Folder", "$path": "src/shared" },
-      "Remotes":   { "$className": "Folder", "$path": "src/remotes" }
+      "Packages": { "$className": "Folder", "$path": "src/Packages" },
+      "Shared":   { "$className": "Folder", "$path": "src/shared" },
+      "Remotes":  { "$className": "Folder", "$path": "src/remotes" }
     },
     "ServerStorage": {
       "$className": "ServerStorage",

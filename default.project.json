@@ -6,11 +6,11 @@
       "$className": "ReplicatedStorage",
       "Packages": { "$className": "Folder", "$path": "src/Packages" },
       "Shared":   { "$className": "Folder", "$path": "src/shared" },
-      "Remotes":  { "$className": "Folder", "$path": "src/remotes" }
+      "Remotes":  { "$className": "Folder", "$path": "src/remotes" },
+      "Tests":    { "$className": "Folder", "$path": "src/tests" }
     },
     "ServerStorage": {
-      "$className": "ServerStorage",
-      "Tests": { "$className": "Folder", "$path": "src/tests" }
+      "$className": "ServerStorage"
     },
     "ServerScriptService": {
       "$className": "ServerScriptService",
@@ -21,6 +21,9 @@
       "StarterPlayerScripts":    { "$className": "StarterPlayerScripts", "$path": "src/client" },
       "StarterCharacterScripts": { "$className": "StarterCharacterScripts", "$path": "src/char" }
     },
-    "StarterGui": { "$className": "StarterGui", "UI": { "$className": "Folder", "$path": "src/ui" } }
+    "StarterGui": {
+      "$className": "StarterGui",
+      "UI": { "$className": "Folder", "$path": "src/ui" }
+    }
   }
 }

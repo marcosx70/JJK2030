@@ -3,7 +3,7 @@ local RunService = game:GetService("RunService")
 if not RunService:IsStudio() then return end -- don't run tests on live servers
 
 local RS = game:GetService("ReplicatedStorage")
-local TestEZ = require(RS.Packages.TestEZ)
+local TestEZ = require(RS:WaitForChild("Packages"):WaitForChild("TestEZ"))
 local Tests = RS:WaitForChild("Tests")
 
 local results = TestEZ.TestBootstrap:run({ Tests }, TestEZ.Reporters.TextReporter)

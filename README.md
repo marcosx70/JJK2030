@@ -1,6 +1,3 @@
---- a/README.md
-+++ b/README.md
-@@
  # JJK2030
  
  **JJK2030** is a Roblox MMORPG project inspired by the world and mechanics of *Jujutsu Kaisen*. The goal is to create an immersive, high-stakes experience featuring deep combat systems, faction-based progression, player-driven quests, and an evolving world.
@@ -9,37 +6,27 @@
 +## 🔧 Project Structure (Rojo-mapped)
  
 JJK2030/
--├── assets/ # Models, VFX, and animations
--│ ├── animations/
--│ ├── vfx/
--│ └── models/
--├── src/ # Game logic
--│ ├── client/ # Local scripts (UI, effects, input)
--│ ├── server/ # Server scripts (combat, data)
--│ └── shared/ # Modules shared by client/server
--├── init.lua # Bootstrapping file for new scripts
--├── README.md # This file
-+├── assets/ # Models, VFX, animations (source files)
-+│ ├── animations/
-+│ ├── vfx/
-+│ └── models/
-+├── src/
-+│ ├── client/ # StarterPlayer/StarterPlayerScripts (LocalScripts) *.client.lua
-+│ ├── server/ # ServerScriptService/Server (Scripts) *.server.lua
-+│ ├── shared/ # ReplicatedStorage/Shared (ModuleScripts) *.lua
-+│ ├── remotes/ # ReplicatedStorage/Remotes (JSON models)
-+│ ├── Packages/ # ReplicatedStorage/Packages (TestEZ lives here)
-+│ ├── tests/ # ReplicatedStorage/Tests (specs)
-+│ ├── char/ # StarterPlayer/StarterCharacterScripts
-+│ └── ui/ # StarterGui/UI
-+├── default.project.json # Rojo mappings (filesystem → Studio)
-+├── README.md
+├── assets/                             # Models, VFX, animations (source files)
+│   ├── animations/
+│   ├── vfx/
+│   └── models/
+├── src/
+│   ├── client/                         # StarterPlayer/StarterPlayerScripts  (LocalScripts)  *.client.lua
+│   ├── server/                         # ServerScriptService/Server          (Scripts)       *.server.lua
+│   ├── shared/                         # ReplicatedStorage/Shared            (ModuleScripts) *.lua
+│   ├── remotes/                        # ReplicatedStorage/Remotes           (.model.json, plain keys)
+│   │   └── Combat.model.json
+│   ├── Packages/                       # ReplicatedStorage/Packages
+│   │   └── TestEZ/
+│   │       └── init.lua                # returns the TestEZ table
+│   ├── tests/                          # ReplicatedStorage/Tests             (specs)
+│   ├── char/                           # StarterPlayer/StarterCharacterScripts
+│   └── ui/                             # StarterGui/UI
+├── default.project.json                # Rojo mappings (filesystem → Studio)
+└── README.md
 
-diff
-Copy
-Edit
 
--## 🧠 Key Features To Be Developed
+-## 🧠 Key Features Developed
 +### Rojo & Script Types
 +Rojo is **one-way**: filesystem → Studio. Don’t edit code in Studio; run `rojo build`/`rojo serve`.
 +
@@ -130,7 +117,6 @@ Edit
 
 ---
 
-Let this serve as your dev HQ. If you're reading this — welcome to **JJK2030**. Let’s build something amazing.
 
 ![Made in Roblox Studio](https://img.shields.io/badge/Made%20With-Roblox%20Studio-brightgreen?style=flat-square)
 ![License: TBD](https://img.shields.io/badge/License-TBD-lightgrey?style=flat-square)

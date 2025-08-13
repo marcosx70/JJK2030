@@ -2,6 +2,7 @@
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
 
 -- Folders/Remotes
 local Remotes = RS:WaitForChild("Remotes")
@@ -16,6 +17,7 @@ local Gate = require(RS:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChi
 
 type StateManagerT = typeof(StateManager.new("Idle"))
 type PlayerCombat = { lastPDodge: number? }
+type State = StateManager.State
 
 -- Toggle this while debugging
 local LOG_COMBAT = true
@@ -122,6 +124,33 @@ local function onDash(plr: Player, _payload: any)
 			end
 		end
 	end)
+end
+
+-- Debug helpers (Studio-only, guarded by LOG_COMBAT)
+function Service.DebugSetState(plr: Player, newState: State): boolean
+	if not LOG_COMBAT then
+		warn("[Debug] DebugSetState ignored (LOG_COMBAT = false)")
+		return false
+	end
+	if not RunService:IsStudio() then
+		warn("[Debug] DebugSetState only available in Studio")
+		return false
+	end
+	local sm = _states[plr]
+	if not sm then
+		warn("[Debug] no StateManager for player")
+		return false
+	end
+	sm:Set(newState)
+	if LOG_COMBAT then
+		print(("[Debug] %s -> %s"):format(plr.Name, newState))
+	 end
+	return true
+end
+
+function Service.GetState(plr: Player): State?
+	local sm = _states[plr]
+	return sm and sm:Get() or nil
 end
 
 function Service.init()

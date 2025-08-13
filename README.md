@@ -28,7 +28,7 @@ JJK2030/
 
  
 + 🧠 Key Features (Vertical Slice)
-
+<pre>
 -* **R6-based custom combat system** with air combos, parries, stuns, and VFX
 -* **Heavenly restrictions**, CE pool, CE efficiency, Six Eyes, RCT systems
 -* **Factions, guilds, associations** with quests, upgrades, and raids
@@ -41,9 +41,9 @@ JJK2030/
 +* **Drops = materials** → crafting/cursed-tool pipeline (future).
 +* **Permadeath loop**: Downed → ally RCT/item revive → finish rituals → (later) soul-plane microchallenge.
 +* **Progression hooks**: Mind stat stub, RCT gate stub, CE Sensory tier-0 (debug).
-
+</pre>
  🤖 Dev Tools
-
+<pre>
 -* **VS Code + Git** for version control
 -* **Copilot + GPT-4o** to assist writing Luau and documenting logic
 -* **Todo Tree & Bookmarks** to manage priorities in-code
@@ -54,9 +54,9 @@ JJK2030/
 +* **TestEZ** (under `src/Packages/TestEZ`)
 +* Copilot + GPT (for boilerplate/refactors; architecture stays in-repo)
 +* Roblox Studio for runtime testing and asset import
-
+</pre>
  📌 Project Notes
-
+<pre>
 -* The `README.md` will evolve as new systems are designed
 -* All custom assets (animations, VFX, models) should be stored in `/assets`
 -* Client-side scripts should be modular and performance aware
@@ -65,7 +65,7 @@ JJK2030/
 +* All custom assets (animations, VFX, models) live under `/assets`.
 +* Client code is modular and performance-aware; **server validates everything** (rate-limit, range/LOS, timestamps).
 +* Follow the **Roadmap canvas** (“JJK2030 — 90-Day Builder’s Roadmap”) for priorities and acceptance.
-
+</pre>
 ---
  
 

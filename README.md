@@ -1,4 +1,4 @@
- # JJK2030
+ JJK2030
  
  **JJK2030** is a Roblox MMORPG project inspired by the world and mechanics of *Jujutsu Kaisen*. The goal is to create an immersive, high-stakes experience featuring deep combat systems, faction-based progression, player-driven quests, and an evolving world.
  
@@ -28,7 +28,7 @@ JJK2030/
 </pre>
 
 
-
+<pre>
 -## 🧠 Key Features Developed
 +### Rojo & Script Types
 +Rojo is **one-way**: filesystem → Studio. Don’t edit code in Studio; run `rojo build`/`rojo serve`.
@@ -68,7 +68,7 @@ JJK2030/
 +local Tests = RS:WaitForChild("Tests")
 +TestEZ.TestBootstrap:run({Tests})
 +```
-+
+<pre>
 +## 🧠 Key Features (Vertical Slice)
 
 -* **R6-based custom combat system** with air combos, parries, stuns, and VFX

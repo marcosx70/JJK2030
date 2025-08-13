@@ -1,6 +1,5 @@
 {
   "ClassName": "Folder",
-  "Name": "Combat",
   "Children": [
     { "Name": "PerfectDodge",  "ClassName": "RemoteEvent" },
     { "Name": "Dash",          "ClassName": "RemoteEvent" },

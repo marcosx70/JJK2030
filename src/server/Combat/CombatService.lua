@@ -15,7 +15,7 @@ local Timing = require(RS:WaitForChild("Shared"):WaitForChild("Combat"):WaitForC
 type StateManagerT = StateManager.StateManager
 type PlayerCombat = { lastPDodge: number? }
 
-local LOG_COMBAT = false
+local LOG_COMBAT = true
 
 local Service = {}
 local _connections: { RBXScriptConnection } = {}
@@ -81,6 +81,10 @@ local function onPerfectDodge(plr: Player, payload: any)
 	if LOG_COMBAT then
 		print("[PD] accept, iframe applied for", IFRAME_DURATION)
 	end
+
+    if LOG_COMBAT then
+        print("[PD] recv from", plr.Name, "payload.t =", typeof(payload)=="table" and payload.t or nil)
+    end
 end
 
 function Service.init()

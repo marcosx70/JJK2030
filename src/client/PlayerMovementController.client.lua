@@ -10,6 +10,7 @@ UIS.InputBegan:Connect(function(input, gp)
 	if gp then return end
 	if input.KeyCode == Enum.KeyCode.Q then
 		local t = os.clock()
+		print("[Client] Q pressed at", t)
 		if t - lastDash > 0.35 then
 			lastDash = t
 			PerfectDodge:FireServer({ t = t })

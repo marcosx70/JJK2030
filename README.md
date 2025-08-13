@@ -2,8 +2,8 @@
  
  **JJK2030** is a Roblox MMORPG project inspired by the world and mechanics of *Jujutsu Kaisen*. The goal is to create an immersive, high-stakes experience featuring deep combat systems, faction-based progression, player-driven quests, and an evolving world.
  
--## 🔧 Project Structure
-+## 🔧 Project Structure (Rojo-mapped)
+- 🔧 Project Structure
++ 🔧 Project Structure (Rojo-mapped)
  
 <pre>
 JJK2030/
@@ -29,16 +29,16 @@ JJK2030/
 
 
 <pre>
--## 🧠 Key Features Developed
-+### Rojo & Script Types
-+Rojo is **one-way**: filesystem → Studio. Don’t edit code in Studio; run `rojo build`/`rojo serve`.
+- 🧠 Key Features Developed
++ Rojo & Script Types
++ Rojo is **one-way**: filesystem → Studio. Don’t edit code in Studio; run `rojo build`/`rojo serve`.
 +
 +Script type is set by filename:
 +- `*.server.lua` → **Script** (server)
 +- `*.client.lua` → **LocalScript** (client)
 +- `*.lua` → **ModuleScript** (shared)
 +
-+### Remotes & JSON Models (project flavor)
++ Remotes & JSON Models (project flavor)
 +We use **plain keys** in `.model.json` (no `$className`/`$properties` for children):
 +```json
 +{
@@ -59,7 +59,7 @@ JJK2030/
 +}
 +```
 +
-+### Testing (TestEZ)
++ Testing (TestEZ)
 +TestEZ resides at `ReplicatedStorage/Packages/TestEZ`; specs live in `ReplicatedStorage/Tests`.
 +Server test runner should use explicit `WaitForChild` chains:
 +```lua
@@ -69,7 +69,7 @@ JJK2030/
 +TestEZ.TestBootstrap:run({Tests})
 +```
 <pre>
-+## 🧠 Key Features (Vertical Slice)
++ 🧠 Key Features (Vertical Slice)
 
 -* **R6-based custom combat system** with air combos, parries, stuns, and VFX
 -* **Heavenly restrictions**, CE pool, CE efficiency, Six Eyes, RCT systems
@@ -84,7 +84,7 @@ JJK2030/
 +* **Permadeath loop**: Downed → ally RCT/item revive → finish rituals → (later) soul-plane microchallenge.
 +* **Progression hooks**: Mind stat stub, RCT gate stub, CE Sensory tier-0 (debug).
 
-## 🚀 Workflow Guidelines
+ 🚀 Workflow Guidelines
 
 -* Use branches when testing major features
 -* Document all major systems in the `shared/` folder using module scripts
@@ -94,7 +94,7 @@ JJK2030/
 +* Document shared systems under `src/shared` (typed, `--!strict`) with `init()` and `Destroy()`.
 +* Add minimal **TestEZ** specs for new logic (≈10–20 lines) before integrating.
 
-## 🤖 Dev Tools
+ 🤖 Dev Tools
 
 -* **VS Code + Git** for version control
 -* **Copilot + GPT-4o** to assist writing Luau and documenting logic
@@ -107,7 +107,7 @@ JJK2030/
 +* Copilot + GPT (for boilerplate/refactors; architecture stays in-repo)
 +* Roblox Studio for runtime testing and asset import
 
-## 📌 Project Notes
+ 📌 Project Notes
 
 -* The `README.md` will evolve as new systems are designed
 -* All custom assets (animations, VFX, models) should be stored in `/assets`

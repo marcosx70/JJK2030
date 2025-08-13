@@ -5,6 +5,7 @@
 -## 🔧 Project Structure
 +## 🔧 Project Structure (Rojo-mapped)
  
+<pre>
 JJK2030/
 ├── assets/                             # Models, VFX, animations (source files)
 │   ├── animations/
@@ -24,6 +25,8 @@ JJK2030/
 │   └── ui/                             # StarterGui/UI
 ├── default.project.json                # Rojo mappings (filesystem → Studio)
 └── README.md
+</pre>
+
 
 
 -## 🧠 Key Features Developed

@@ -24,7 +24,8 @@ JJK2030/
 │   └── ui/                             # StarterGui/UI
 ├── default.project.json                # Rojo mappings (filesystem → Studio)
 └── README.md
-<pre>
+</pre>
+
  
 + 🧠 Key Features (Vertical Slice)
 

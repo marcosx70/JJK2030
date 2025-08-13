@@ -12,9 +12,10 @@ local PerfectDodge = CombatFolder:WaitForChild("PerfectDodge") :: RemoteEvent
 local StateManager = require(RS:WaitForChild("Shared"):WaitForChild("Systems"):WaitForChild("StateManager"))
 local Timing = require(RS:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("Timing"))
 
-type StateManagerT = StateManager.StateManager
+type StateManagerT = typeof(StateManager.new("Idle"))
 type PlayerCombat = { lastPDodge: number? }
 
+-- Toggle this while debugging
 local LOG_COMBAT = true
 
 local Service = {}
@@ -29,7 +30,9 @@ local IFRAME_DURATION = 0.35 -- seconds
 
 local function getChar(plr: Player): Model?
 	local c = plr.Character
-	if c and c.Parent then return c end
+	if c and c.Parent then
+		return c
+	end
 	return nil
 end
 
@@ -45,6 +48,10 @@ local function tagIFrame(char: Instance)
 end
 
 local function onPerfectDodge(plr: Player, payload: any)
+	if LOG_COMBAT then
+		print("[PD] recv from", plr.Name, "payload.t =", typeof(payload) == "table" and payload.t or nil)
+	end
+
 	if typeof(payload) ~= "table" then return end
 	local tVal = payload.t
 	if typeof(tVal) ~= "number" then return end
@@ -63,7 +70,7 @@ local function onPerfectDodge(plr: Player, payload: any)
 	if not pc then
 		pc = {}
 		_pc[plr] = pc
-	 end
+	end
 
 	if not Timing.coalesce(pc.lastPDodge, now, PD_COOLDOWN) then
 		if LOG_COMBAT then
@@ -79,12 +86,8 @@ local function onPerfectDodge(plr: Player, payload: any)
 	tagIFrame(char)
 
 	if LOG_COMBAT then
-		print("[PD] accept, iframe applied for", IFRAME_DURATION)
+		print(("[PD] accept, iframe %.2fs"):format(IFRAME_DURATION))
 	end
-
-    if LOG_COMBAT then
-        print("[PD] recv from", plr.Name, "payload.t =", typeof(payload)=="table" and payload.t or nil)
-    end
 end
 
 function Service.init()
@@ -100,7 +103,7 @@ function Service.init()
 		_pc[plr] = nil
 	end)
 
-	-- Backfill already-present players (Play Solo)
+	-- Backfill already-present players
 	for _, plr in ipairs(Players:GetPlayers()) do
 		if not _states[plr] then
 			_states[plr] = StateManager.new("Idle")

@@ -7,10 +7,12 @@ local CollectionService = game:GetService("CollectionService")
 local Remotes = RS:WaitForChild("Remotes")
 local CombatFolder = Remotes:WaitForChild("Combat")
 local PerfectDodge = CombatFolder:WaitForChild("PerfectDodge") :: RemoteEvent
+local Dash = CombatFolder:WaitForChild("Dash") :: RemoteEvent
 
 -- Shared modules
 local StateManager = require(RS:WaitForChild("Shared"):WaitForChild("Systems"):WaitForChild("StateManager"))
 local Timing = require(RS:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("Timing"))
+local Gate = require(RS:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("StateGate"))
 
 type StateManagerT = typeof(StateManager.new("Idle"))
 type PlayerCombat = { lastPDodge: number? }
@@ -27,6 +29,7 @@ local _pc: { [Player]: PlayerCombat } = {}
 local PD_WINDOW = 0.12       -- +/- seconds, latency window
 local PD_COOLDOWN = 0.25     -- seconds between accepted PDs
 local IFRAME_DURATION = 0.35 -- seconds
+local DASH_DURATION = 0.25 -- seconds the server keeps you in Dash
 
 local function getChar(plr: Player): Model?
 	local c = plr.Character
@@ -90,6 +93,37 @@ local function onPerfectDodge(plr: Player, payload: any)
 	end
 end
 
+local function onDash(plr: Player, _payload: any)
+	local sm = _states[plr]
+	if not sm then
+		_states[plr] = StateManager.new("Idle")
+		sm = _states[plr]
+	end
+
+	local current = sm:Get()
+	if not Gate.canDash(current) then
+		if LOG_COMBAT then
+			warn(("[Dash] reject: state=%s"):format(tostring(current)))
+		end
+		return
+	end
+
+	-- Enter Dash and schedule return to Idle (server-authoritative)
+	sm:Set("Dash")
+	if LOG_COMBAT then
+		print(("[Dash] enter for %.2fs"):format(DASH_DURATION))
+	end
+	task.delay(DASH_DURATION, function()
+		-- Only revert if still dashing (don’t stomp other transitions)
+		if sm:Get() == "Dash" then
+			sm:Set("Idle")
+			if LOG_COMBAT then
+				print("[Dash] exit -> Idle")
+			end
+		end
+	end)
+end
+
 function Service.init()
 	if LOG_COMBAT then print("[CombatService] init") end
 
@@ -113,6 +147,7 @@ function Service.init()
 
 	-- Remotes
 	_connections[#_connections+1] = PerfectDodge.OnServerEvent:Connect(onPerfectDodge)
+	_connections[#_connections+1] = Dash.OnServerEvent:Connect(onDash)
 end
 
 function Service.Destroy()

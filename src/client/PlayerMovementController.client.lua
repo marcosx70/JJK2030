@@ -17,3 +17,11 @@ UIS.InputBegan:Connect(function(input, gp)
 		end
 	end
 end)
+
+-- TEMP: press E to ask server to Dash (for testing)
+if input.KeyCode == Enum.KeyCode.E then
+	local RS = game:GetService("ReplicatedStorage")
+	local Dash = RS.Remotes.Combat:WaitForChild("Dash") :: RemoteEvent
+	print("[Client] E pressed (Dash intent)")
+	Dash:FireServer({})
+end

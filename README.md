@@ -68,4 +68,4 @@ JJK2030/
 
 ![Made in Roblox Studio](https://img.shields.io/badge/Made%20With-Roblox%20Studio-brightgreen?style=flat-square)
 ![License: TBD](https://img.shields.io/badge/License-TBD-lightgrey?style=flat-square)
-![License: TBD](https://img.shields.io/badge/License-TBD-lightgrey?style=flat-square)![License: TBD](https://img.shields.io/badge/License-TBD-lightgrey?style=flat-square)
+

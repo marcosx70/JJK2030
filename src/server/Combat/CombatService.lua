@@ -138,8 +138,8 @@ function Service.DebugSetState(plr: Player, newState: State): boolean
 	end
 	local sm = _states[plr]
 	if not sm then
-		warn("[Debug] no StateManager for player")
-		return false
+		_states[plr] = StateManager.new("Idle")
+		sm = _states[plr]
 	end
 	sm:Set(newState)
 	if LOG_COMBAT then

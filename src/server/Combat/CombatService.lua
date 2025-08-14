@@ -4,40 +4,40 @@ local RS = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 
--- Folders/Remotes
+--===== Remotes =====--
 local Remotes = RS:WaitForChild("Remotes")
 local CombatFolder = Remotes:WaitForChild("Combat")
 local PerfectDodge = CombatFolder:WaitForChild("PerfectDodge") :: RemoteEvent
 local Dash = CombatFolder:WaitForChild("Dash") :: RemoteEvent
 
--- Shared modules
+--===== Shared modules =====--
 local StateManager = require(RS:WaitForChild("Shared"):WaitForChild("Systems"):WaitForChild("StateManager"))
 local Timing = require(RS:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("Timing"))
 local Gate = require(RS:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("StateGate"))
 
+type State = StateManager.State
 type StateManagerT = typeof(StateManager.new("Idle"))
 type PlayerCombat = { lastPDodge: number?, stunUntil: number? }
-type State = StateManager.State
 
--- Toggle this while debugging
+-- Toggle while debugging
 local LOG_COMBAT = true
 
+--===== Service locals =====--
 local Service = {}
 local _connections: { RBXScriptConnection } = {}
 local _states: { [Player]: StateManagerT } = {}
 local _pc: { [Player]: PlayerCombat } = {}
 
 -- Tunables
-local PD_WINDOW = 0.12       -- +/- seconds, latency window
-local PD_COOLDOWN = 0.25     -- seconds between accepted PDs
-local IFRAME_DURATION = 0.35 -- seconds
-local DASH_DURATION = 0.25 -- seconds the server keeps you in Dash
+local PD_WINDOW = 0.12        -- +/- seconds
+local PD_COOLDOWN = 0.25      -- seconds
+local IFRAME_DURATION = 0.35  -- seconds
+local DASH_DURATION = 0.25    -- seconds
 
+--===== helpers =====--
 local function getChar(plr: Player): Model?
 	local c = plr.Character
-	if c and c.Parent then
-		return c
-	end
+	if c and c.Parent then return c end
 	return nil
 end
 
@@ -52,6 +52,21 @@ local function tagIFrame(char: Instance)
 	end
 end
 
+-- Debug stun flag stored in _pc; returns (isStunned, secondsRemaining)
+local function debugIsStunned(plr: Player, now: number): (boolean, number)
+	local pc = _pc[plr]
+	if pc and pc.stunUntil then
+		local remain = pc.stunUntil - now
+		if remain > 0 then
+			return true, remain
+		else
+			pc.stunUntil = nil
+		end
+	end
+	return false, 0
+end
+
+--===== handlers =====--
 local function onPerfectDodge(plr: Player, payload: any)
 	if LOG_COMBAT then
 		print("[PD] recv from", plr.Name, "payload.t =", typeof(payload) == "table" and payload.t or nil)
@@ -63,24 +78,15 @@ local function onPerfectDodge(plr: Player, payload: any)
 
 	local now = os.clock()
 	local delta = now - tVal
-
 	if not Timing.within(delta, PD_WINDOW) then
-		if LOG_COMBAT then
-			warn(("[PD] reject window: %.3f"):format(delta))
-		end
+		if LOG_COMBAT then warn(("[PD] reject window: %.3f"):format(delta)) end
 		return
 	end
 
 	local pc = _pc[plr]
-	if not pc then
-		pc = {}
-		_pc[plr] = pc
-	end
-
+	if not pc then pc = {}; _pc[plr] = pc end
 	if not Timing.coalesce(pc.lastPDodge, now, PD_COOLDOWN) then
-		if LOG_COMBAT then
-			warn("[PD] reject rate: cooldown")
-		end
+		if LOG_COMBAT then warn("[PD] reject rate: cooldown") end
 		return
 	end
 
@@ -89,13 +95,11 @@ local function onPerfectDodge(plr: Player, payload: any)
 
 	pc.lastPDodge = now
 	tagIFrame(char)
-
-	if LOG_COMBAT then
-		print(("[PD] accept, iframe %.2fs"):format(IFRAME_DURATION))
-	end
+	if LOG_COMBAT then print(("[PD] accept, iframe %.2fs"):format(IFRAME_DURATION)) end
 end
 
 local function onDash(plr: Player, _payload: any)
+	-- ensure state object exists
 	local sm = _states[plr]
 	if not sm then
 		_states[plr] = StateManager.new("Idle")
@@ -103,42 +107,36 @@ local function onDash(plr: Player, _payload: any)
 	end
 
 	local current = sm:Get()
-	if LOG_COMBAT then
-	print(("[Dash] requested; state=%s"):format(current))
-	end
 	local now = os.clock()
 	local dbgStun, remain = debugIsStunned(plr, now)
+
 	if LOG_COMBAT then
 		print(("[Dash] requested; state=%s, dbgStun=%.2fs"):format(tostring(current), remain))
 	end
+
 	if dbgStun then
 		if LOG_COMBAT then warn(("[Dash] reject: debug-stun active (%.2fs left)"):format(remain)) end
 		return
 	end
+
+	-- shared pure gate (Stunned/Downed)
 	if not Gate.canDash(current) then
-		if LOG_COMBAT then
-			warn(("[Dash] reject: state=%s"):format(tostring(current)))
-		end
+		if LOG_COMBAT then warn(("[Dash] reject: state=%s"):format(tostring(current))) end
 		return
 	end
 
-	-- Enter Dash and schedule return to Idle (server-authoritative)
+	-- Enter Dash and schedule return to Idle
 	sm:Set("Dash")
-	if LOG_COMBAT then
-		print(("[Dash] enter for %.2fs"):format(DASH_DURATION))
-	end
+	if LOG_COMBAT then print(("[Dash] enter for %.2fs"):format(DASH_DURATION)) end
 	task.delay(DASH_DURATION, function()
-		-- Only revert if still dashing (don’t stomp other transitions)
 		if sm:Get() == "Dash" then
 			sm:Set("Idle")
-			if LOG_COMBAT then
-				print("[Dash] exit -> Idle")
-			end
+			if LOG_COMBAT then print("[Dash] exit -> Idle") end
 		end
 	end)
 end
 
--- Debug helpers (Studio-only, guarded by LOG_COMBAT)
+--===== debug API (Studio only) =====--
 function Service.DebugSetState(plr: Player, newState: State): boolean
 	if not LOG_COMBAT then
 		warn("[Debug] DebugSetState ignored (LOG_COMBAT = false)")
@@ -146,17 +144,15 @@ function Service.DebugSetState(plr: Player, newState: State): boolean
 	end
 	local sm = _states[plr]
 	if not sm then
-		_states[plr] = StateManager.new("Idle")
-		sm = _states[plr]
+		_states[plr] = StateManager.new("Idle"); sm = _states[plr]
 	end
-	sm:Set(newState)
-	-- tie into debug stun flag for determinism
 	_pc[plr] = _pc[plr] or {}
 	if newState == "Stunned" then
-		_pc[plr].stunUntil = os.clock() + 9999 -- effectively “permanent” until cleared
+		_pc[plr].stunUntil = os.clock() + 9999
 	else
 		_pc[plr].stunUntil = nil
 	end
+	sm:Set(newState)
 	if LOG_COMBAT then print(("[Debug] %s -> %s"):format(plr.Name, newState)) end
 	return true
 end
@@ -171,7 +167,6 @@ function Service.DebugStunFor(plr: Player, seconds: number)
 	sm:Set("Stunned")
 	if LOG_COMBAT then print(("[Debug] %s stunned for %.2fs"):format(plr.Name, seconds)) end
 	task.delay(seconds, function()
-		-- don’t clobber legitimate transitions
 		if _pc[plr] and _pc[plr].stunUntil and _pc[plr].stunUntil <= os.clock() then
 			_pc[plr].stunUntil = nil
 			if sm:Get() == "Stunned" then sm:Set("Idle") end
@@ -180,58 +175,46 @@ function Service.DebugStunFor(plr: Player, seconds: number)
 	end)
 end
 
-local function debugIsStunned(plr: Player, now: number): (boolean, number)
-	local pc = _pc[plr]
-	if pc and pc.stunUntil then
-		local remain = pc.stunUntil - now
-		if remain > 0 then
-			return true, remain
-		else
-			pc.stunUntil = nil -- expired
-		end
-	end
-	return false, 0
+function Service.GetState(plr: Player): State?
+	local sm = _states[plr]
+	return sm and sm:Get() or nil
 end
 
-function Service.DebugStunFor(plr: Player, seconds: number)
-	local sm = _states[plr]
-	if not sm then
-		_states[plr] = StateManager.new("Idle")
-		sm = _states[plr]
+--===== lifecycle =====--
+local function attachForPlayer(plr: Player)
+	_states[plr] = StateManager.new("Idle")
+	_pc[plr] = {}
+	-- Chat shortcuts for Studio (no command bar juggling)
+	if LOG_COMBAT and RunService:IsStudio() then
+		local conn = plr.Chatted:Connect(function(msg)
+			msg = string.lower(msg)
+			if msg == "/stun" then
+				Service.DebugStunFor(plr, 3)
+			elseif msg == "/stun5" then
+				Service.DebugStunFor(plr, 5)
+			elseif msg == "/idle" then
+				Service.DebugSetState(plr, "Idle")
+			end
+		end)
+		table.insert(_connections, conn)
 	end
-	sm:Set("Stunned")
-	if LOG_COMBAT then print(("[Debug] %s stunned for %.2fs"):format(plr.Name, seconds)) end
-	task.delay(seconds, function()
-		-- don’t clobber another state if it changed since
-		if sm:Get() == "Stunned" then
-			sm:Set("Idle")
-			if LOG_COMBAT then print(("[Debug] %s stun cleared"):format(plr.Name)) end
-		end
-	end)
 end
 
 function Service.init()
 	if LOG_COMBAT then print("[CombatService] init") end
 
-	-- Per-player state holders
-	_connections[#_connections+1] = Players.PlayerAdded:Connect(function(plr)
-		_states[plr] = StateManager.new("Idle")
-		_pc[plr] = {}
-	end)
+	_connections[#_connections+1] = Players.PlayerAdded:Connect(attachForPlayer)
 	_connections[#_connections+1] = Players.PlayerRemoving:Connect(function(plr)
 		_states[plr] = nil
 		_pc[plr] = nil
 	end)
 
-	-- Backfill already-present players
 	for _, plr in ipairs(Players:GetPlayers()) do
 		if not _states[plr] then
-			_states[plr] = StateManager.new("Idle")
-			_pc[plr] = {}
+			attachForPlayer(plr)
 		end
 	end
 
-	-- Remotes
 	_connections[#_connections+1] = PerfectDodge.OnServerEvent:Connect(onPerfectDodge)
 	_connections[#_connections+1] = Dash.OnServerEvent:Connect(onDash)
 end

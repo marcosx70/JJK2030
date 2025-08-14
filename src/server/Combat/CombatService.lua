@@ -103,6 +103,9 @@ local function onDash(plr: Player, _payload: any)
 	end
 
 	local current = sm:Get()
+	if LOG_COMBAT then
+	print(("[Dash] requested; state=%s"):format(current))
+	end
 	if not Gate.canDash(current) then
 		if LOG_COMBAT then
 			warn(("[Dash] reject: state=%s"):format(tostring(current)))

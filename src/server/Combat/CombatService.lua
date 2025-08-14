@@ -16,7 +16,7 @@ local Timing = require(RS:WaitForChild("Shared"):WaitForChild("Combat"):WaitForC
 local Gate = require(RS:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("StateGate"))
 
 type StateManagerT = typeof(StateManager.new("Idle"))
-type PlayerCombat = { lastPDodge: number? }
+type PlayerCombat = { lastPDodge: number?, stunUntil: number? }
 type State = StateManager.State
 
 -- Toggle this while debugging
@@ -106,6 +106,15 @@ local function onDash(plr: Player, _payload: any)
 	if LOG_COMBAT then
 	print(("[Dash] requested; state=%s"):format(current))
 	end
+	local now = os.clock()
+	local dbgStun, remain = debugIsStunned(plr, now)
+	if LOG_COMBAT then
+		print(("[Dash] requested; state=%s, dbgStun=%.2fs"):format(tostring(current), remain))
+	end
+	if dbgStun then
+		if LOG_COMBAT then warn(("[Dash] reject: debug-stun active (%.2fs left)"):format(remain)) end
+		return
+	end
 	if not Gate.canDash(current) then
 		if LOG_COMBAT then
 			warn(("[Dash] reject: state=%s"):format(tostring(current)))
@@ -135,25 +144,53 @@ function Service.DebugSetState(plr: Player, newState: State): boolean
 		warn("[Debug] DebugSetState ignored (LOG_COMBAT = false)")
 		return false
 	end
-	if not RunService:IsStudio() then
-		warn("[Debug] DebugSetState only available in Studio")
-		return false
-	end
 	local sm = _states[plr]
 	if not sm then
 		_states[plr] = StateManager.new("Idle")
 		sm = _states[plr]
 	end
 	sm:Set(newState)
-	if LOG_COMBAT then
-		print(("[Debug] %s -> %s"):format(plr.Name, newState))
-	 end
+	-- tie into debug stun flag for determinism
+	_pc[plr] = _pc[plr] or {}
+	if newState == "Stunned" then
+		_pc[plr].stunUntil = os.clock() + 9999 -- effectively “permanent” until cleared
+	else
+		_pc[plr].stunUntil = nil
+	end
+	if LOG_COMBAT then print(("[Debug] %s -> %s"):format(plr.Name, newState)) end
 	return true
 end
 
-function Service.GetState(plr: Player): State?
+function Service.DebugStunFor(plr: Player, seconds: number)
 	local sm = _states[plr]
-	return sm and sm:Get() or nil
+	if not sm then
+		_states[plr] = StateManager.new("Idle"); sm = _states[plr]
+	end
+	_pc[plr] = _pc[plr] or {}
+	_pc[plr].stunUntil = os.clock() + seconds
+	sm:Set("Stunned")
+	if LOG_COMBAT then print(("[Debug] %s stunned for %.2fs"):format(plr.Name, seconds)) end
+	task.delay(seconds, function()
+		-- don’t clobber legitimate transitions
+		if _pc[plr] and _pc[plr].stunUntil and _pc[plr].stunUntil <= os.clock() then
+			_pc[plr].stunUntil = nil
+			if sm:Get() == "Stunned" then sm:Set("Idle") end
+			if LOG_COMBAT then print(("[Debug] %s stun cleared"):format(plr.Name)) end
+		end
+	end)
+end
+
+local function debugIsStunned(plr: Player, now: number): (boolean, number)
+	local pc = _pc[plr]
+	if pc and pc.stunUntil then
+		local remain = pc.stunUntil - now
+		if remain > 0 then
+			return true, remain
+		else
+			pc.stunUntil = nil -- expired
+		end
+	end
+	return false, 0
 end
 
 function Service.DebugStunFor(plr: Player, seconds: number)

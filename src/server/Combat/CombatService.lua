@@ -153,6 +153,23 @@ function Service.GetState(plr: Player): State?
 	return sm and sm:Get() or nil
 end
 
+function Service.DebugStunFor(plr: Player, seconds: number)
+	local sm = _states[plr]
+	if not sm then
+		_states[plr] = StateManager.new("Idle")
+		sm = _states[plr]
+	end
+	sm:Set("Stunned")
+	if LOG_COMBAT then print(("[Debug] %s stunned for %.2fs"):format(plr.Name, seconds)) end
+	task.delay(seconds, function()
+		-- don’t clobber another state if it changed since
+		if sm:Get() == "Stunned" then
+			sm:Set("Idle")
+			if LOG_COMBAT then print(("[Debug] %s stun cleared"):format(plr.Name)) end
+		end
+	end)
+end
+
 function Service.init()
 	if LOG_COMBAT then print("[CombatService] init") end
 

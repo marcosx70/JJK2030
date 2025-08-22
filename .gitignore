@@ -11,6 +11,7 @@
 # Rojo
 /build/
 rojo.log
+sourcemap.json
 
 # OS/editor
 .DS_Store

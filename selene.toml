@@ -1,9 +1,21 @@
+lua_variant = "Roblox"
+
+column_width = 110
+indent_type = "Tabs"
+indent_width = 4
+quote_style = "AutoPreferDouble"
+call_parentheses = "Always"
+
 std = "roblox"
+
 [lints]
 shadowing = "warn"
 unused_variable = "warn"
 
 [globals]
 workspace = { read_only = true }
-game = { read_only = true }
-script = { read_only = true }
+game      = { read_only = true }
+script    = { read_only = true }
+describe  = { read_only = true }
+it        = { read_only = true }
+expect    = { read_only = true }

@@ -15,7 +15,7 @@ local DEFAULT_KEYBINDS = {
 	Forward = Enum.KeyCode.W.Name,
 	Backward = Enum.KeyCode.S.Name,
 	Left = Enum.KeyCode.A.Name,
-	Right = Enum.KeyCode.D.Name
+	Right = Enum.KeyCode.D.Name,
 }
 
 local function loadKeybinds(userId)

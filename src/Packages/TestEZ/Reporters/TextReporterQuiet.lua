@@ -13,7 +13,7 @@ local INDENT = (" "):rep(3)
 local STATUS_SYMBOLS = {
 	[TestEnum.TestStatus.Success] = "+",
 	[TestEnum.TestStatus.Failure] = "-",
-	[TestEnum.TestStatus.Skipped] = "~"
+	[TestEnum.TestStatus.Skipped] = "~",
 }
 local UNKNOWN_STATUS_SYMBOL = "?"
 
@@ -32,11 +32,7 @@ local function reportNode(node, buffer, level)
 	if node.status ~= TestEnum.TestStatus.Success then
 		local symbol = STATUS_SYMBOLS[node.status] or UNKNOWN_STATUS_SYMBOL
 
-		line = ("%s[%s] %s"):format(
-			INDENT:rep(level),
-			symbol,
-			node.planNode.phrase
-		)
+		line = ("%s[%s] %s"):format(INDENT:rep(level), symbol, node.planNode.phrase)
 	end
 
 	table.insert(buffer, line)
@@ -72,7 +68,7 @@ function TextReporterQuiet.report(results)
 			results.successCount,
 			results.failureCount,
 			results.skippedCount
-		)
+		),
 	}
 
 	print(table.concat(resultBuffer, "\n"))

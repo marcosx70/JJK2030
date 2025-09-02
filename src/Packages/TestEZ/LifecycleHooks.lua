@@ -55,7 +55,10 @@ function LifecycleHooks:pushHooksFrom(planNode)
 	table.insert(self._stack, {
 		[TestEnum.NodeType.BeforeAll] = self:_getHooksOfType(planNode.children, TestEnum.NodeType.BeforeAll),
 		[TestEnum.NodeType.AfterAll] = self:_getHooksOfType(planNode.children, TestEnum.NodeType.AfterAll),
-		[TestEnum.NodeType.BeforeEach] = self:_getHooksOfType(planNode.children, TestEnum.NodeType.BeforeEach),
+		[TestEnum.NodeType.BeforeEach] = self:_getHooksOfType(
+			planNode.children,
+			TestEnum.NodeType.BeforeEach
+		),
 		[TestEnum.NodeType.AfterEach] = self:_getHooksOfType(planNode.children, TestEnum.NodeType.AfterEach),
 	})
 end

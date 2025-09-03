@@ -1,126 +1,146 @@
 --!strict
--- Pure core logic for combat wrapper to call into.
+-- src/server/Combat/CombatCore.lua
 
-local Players = game:GetService("Players")
-local RS = game:GetService("ReplicatedStorage")
+local _Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local StateGate = require(RS.Shared.Combat.StateGate)
+-- Types (from your repo)
+local Types = require(ReplicatedStorage.Shared.Types.CombatTypes)
+type State = Types.CombatState
 
 local Core = {}
 
--- internal state
-local _state: { [Player]: string } = {}          -- current state per player
-local _stunUntil: { [Player]: number } = {}      -- debug stun expiry (os.clock)
-local _chatted: { [Player]: RBXScriptConnection } = {}
+-- Per-player state we track server-side for debugging / gating
+local _state: { [Player]: State } = {}
+local _connections: { [Player]: RBXScriptConnection } = {}
 
--- tuning + logging
-local LOG_COMBAT = true
-local IFRAME_WINDOW = 0.35
-local DASH_DURATION = 0.25
+-- Lookup to convert chat text -> typed union
+local StringToState: { [string]: State } = {
+	Idle = "Idle",
+	M1 = "M1",
+	M2 = "M2",
+	Dash = "Dash",
+	Air = "Air",
+	Stunned = "Stunned",
+	Downed = "Downed",
+}
 
--- state helpers
-function Core.getState(plr: Player): string?
-	return _state[plr]
-end
-function Core.setState(plr: Player, s: string)
-	_state[plr] = s
-end
+-- ===== Internals =====
 
--- remote handlers
-function Core.onPerfectDodge(plr: Player, payload: any)
-	if LOG_COMBAT and payload and payload.t ~= nil then
-		print(("[PD] recv from %s payload.t = %s"):format(plr.Name, tostring(payload.t)))
-	end
-	if LOG_COMBAT then
-		print(("[PD] accept, iframe %.2fs"):format(IFRAME_WINDOW))
-	end
-	-- Future: register i-frames on server side for hit validation window.
-end
-
-function Core.onDash(plr: Player)
-	local now = os.clock()
-	local left = math.max(0, (_stunUntil[plr] or 0) - now)
-	local state = Core.getState(plr) or "Idle"
-
-	if LOG_COMBAT then
-		print(("[Dash] requested; state=%s, dbgStun=%.2fs"):format(state, left))
+local function attachChatDebug(plr: Player)
+	-- Clean any previous connection for safety
+	if _connections[plr] then
+		_connections[plr]:Disconnect()
 	end
 
-	if left > 0 then
-		if LOG_COMBAT then
-			print(("[Dash] reject: debug-stun active (%.2fs left)"):format(left))
+	local conn = plr.Chatted:Connect(function(msg: string)
+		-- /state <Idle|M1|M2|Dash|Air|Stunned|Downed>
+		do
+			local name = msg:match("^/state%s+(%w+)$")
+			if name then
+				local s = StringToState[name]
+				if s then
+					Core.setState(plr, s)
+					print(("[CombatCore] %s -> state %s"):format(plr.Name, s))
+				else
+					warn(("[CombatCore] unknown state '%s'"):format(name))
+				end
+				return
+			end
 		end
-		return
-	end
-	if not StateGate.canDash(state) then
-		if LOG_COMBAT then
-			print(("[Dash] reject: gated by server state (%s)"):format(state))
+
+		-- /stun <seconds>
+		do
+			local secsTxt = msg:match("^/stun%s+(%d+)$")
+			if secsTxt then
+				local n = tonumber(secsTxt)
+				if n then
+					Core.DebugStunFor(plr, n)
+					print(("[CombatCore] %s stunned for %ds (debug)"):format(plr.Name, n))
+				else
+					warn("[CombatCore] /stun needs a number, e.g. /stun 2")
+				end
+				return
+			end
 		end
-		return
-	end
-
-	Core.setState(plr, "Dash")
-	if LOG_COMBAT then print(("[Dash] enter for %.2fs"):format(DASH_DURATION)) end
-
-	task.delay(DASH_DURATION, function()
-		Core.setState(plr, "Idle")
-		if LOG_COMBAT then print("[Dash] exit -> Idle") end
 	end)
+
+	_connections[plr] = conn
 end
 
--- lifecycle per player
-function Core.attachPlayer(plr: Player)
-	_state[plr] = _state[plr] or "Idle"
+-- ===== Public API (keep signatures stable) =====
 
-	-- inside Core.attachPlayer(plr)
-_chatted[plr] = plr.Chatted:Connect(function(msg)
-	local secsStr = msg:match("^stun%s+(%d+%.?%d*)$")
-	local secs = secsStr and tonumber(secsStr)
-	if secs then
-		Core.DebugStunFor(plr, secs) -- secs is number here
-		return
+function Core.init()
+	-- Initialize any runtime data as needed
+	for _, plr in ipairs(_Players:GetPlayers()) do
+		Core.attachPlayer(plr)
 	end
-
-	local st = msg:match("^state%s+(%a+)$")
-	if st then
-		Core.DebugSetState(plr, st)
-		return
-	end
-end)
-
-end
-
-function Core.cleanupPlayer(plr: Player)
-	if _chatted[plr] then _chatted[plr]:Disconnect() end
-	_chatted[plr] = nil
-	_state[plr] = nil
-	_stunUntil[plr] = nil
+	_Players.PlayerAdded:Connect(Core.attachPlayer)
+	_Players.PlayerRemoving:Connect(Core.cleanupPlayer)
 end
 
 function Core.Destroy()
-	for plr, con in pairs(_chatted) do
-		if con.Connected then con:Disconnect() end
-		_chatted[plr] = nil
+	for plr, conn in pairs(_connections) do
+		if conn.Connected then
+			conn:Disconnect()
+		end
+		_connections[plr] = nil
 	end
-	table.clear(_state)
-	table.clear(_stunUntil)
+	_state = {}
 end
 
--- debug helpers (callable from Command Bar via _G.CS.*)
-function Core.DebugSetState(plr: Player, newState: string)
-	Core.setState(plr, newState)
-	print(("[Debug] %s -> %s"):format(plr.Name, newState))
+-- Exposed for wrapper
+function Core.attachPlayer(plr: Player)
+	_state[plr] = "Idle"
+	attachChatDebug(plr)
 end
 
-function Core.DebugStunFor(plr: Player, seconds: number)
-	_stunUntil[plr] = os.clock() + seconds
-	print(("[Debug] %s stunned for %.2fs"):format(plr.Name, seconds))
-	task.delay(seconds, function()
-		if (_stunUntil[plr] or 0) <= os.clock() then
-			_stunUntil[plr] = nil
-			print(("[Debug] %s stun cleared"):format(plr.Name))
+function Core.cleanupPlayer(plr: Player)
+	local c = _connections[plr]
+	if c then
+		c:Disconnect()
+		_connections[plr] = nil
+	end
+	_state[plr] = nil :: any
+end
+
+function Core.getState(plr: Player): State
+	return _state[plr] or "Idle"
+end
+
+-- Internal setter used by chat + any server logic
+function Core.setState(plr: Player, s: State)
+	_state[plr] = s
+end
+
+-- Debug commands exposed to wrapper/tests
+function Core.DebugSetState(plr: Player, s: string)
+	local mapped = StringToState[s]
+	if mapped then
+		Core.setState(plr, mapped)
+	else
+		warn(("[CombatCore] DebugSetState: unknown state '%s'"):format(s))
+	end
+end
+
+function Core.DebugStunFor(plr: Player, secs: number)
+	-- TODO: integrate your real state manager’s stun logic here
+	Core.setState(plr, "Stunned")
+	task.delay(secs, function()
+		-- Only revert if still stunned
+		if Core.getState(plr) == "Stunned" then
+			Core.setState(plr, "Idle")
 		end
 	end)
+end
+
+-- Remote handlers (no-op scaffolds here; wire to your real systems)
+function Core.onPerfectDodge(plr: Player, payload: any)
+	print(("[PD] from %s"):format(plr.Name))
+end
+
+function Core.onDash(plr: Player)
+	Core.setState(plr, "Dash")
 end
 
 return Core
